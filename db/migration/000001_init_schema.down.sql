@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS "order_status";
+DROP TABLE IF EXISTS "order";

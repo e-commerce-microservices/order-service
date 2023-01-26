@@ -9,7 +9,7 @@ redeploy:
 
 .PHONY: protogen
 protogen:
-	protoc --proto_path=proto proto/order.proto proto/general.proto \
+	protoc --proto_path=proto proto/order_service.proto proto/auth_service.proto proto/general.proto \
 	--go_out=pb --go_opt=paths=source_relative \
 	--go-grpc_out=pb --go-grpc_opt=paths=source_relative
 
@@ -21,7 +21,7 @@ sqlcgen:
 migratecreate:
 	migrate create -ext sql -dir db/migration -seq ${f}
 
-DB_DSN := postgres://admin:admin@192.168.49.2:30013/order?sslmode=disable
+DB_DSN := postgres://admin:admin@192.168.49.2:30014/order?sslmode=disable
 .PHONY: migrateup
 migrateup:
 	migrate -path db/migration -database "${DB_DSN}" -verbose up ${v}
