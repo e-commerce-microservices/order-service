@@ -7,8 +7,6 @@ package repository
 
 import (
 	"context"
-
-	"github.com/google/uuid"
 )
 
 const createOrder = `-- name: CreateOrder :exec
@@ -36,6 +34,78 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) error 
 	return err
 }
 
+const getWaitingOrderByCustomer = `-- name: GetWaitingOrderByCustomer :many
+SELECT id, customer_id, supplier_id, product_id, quantity, status, created_at FROM "order"
+WHERE "customer_id" = $1
+`
+
+func (q *Queries) GetWaitingOrderByCustomer(ctx context.Context, customerID int64) ([]Order, error) {
+	rows, err := q.db.QueryContext(ctx, getWaitingOrderByCustomer, customerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Order
+	for rows.Next() {
+		var i Order
+		if err := rows.Scan(
+			&i.ID,
+			&i.CustomerID,
+			&i.SupplierID,
+			&i.ProductID,
+			&i.Quantity,
+			&i.Status,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getWaitingOrderBySupplier = `-- name: GetWaitingOrderBySupplier :many
+SELECT id, customer_id, supplier_id, product_id, quantity, status, created_at FROM "order"
+WHERE "supplier_id" = $1
+`
+
+func (q *Queries) GetWaitingOrderBySupplier(ctx context.Context, supplierID int64) ([]Order, error) {
+	rows, err := q.db.QueryContext(ctx, getWaitingOrderBySupplier, supplierID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Order
+	for rows.Next() {
+		var i Order
+		if err := rows.Scan(
+			&i.ID,
+			&i.CustomerID,
+			&i.SupplierID,
+			&i.ProductID,
+			&i.Quantity,
+			&i.Status,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateOrderStatus = `-- name: UpdateOrderStatus :exec
 UPDATE "order"
 SET "status" = $1
@@ -44,7 +114,7 @@ WHERE "id" = $2
 
 type UpdateOrderStatusParams struct {
 	Status interface{}
-	ID     uuid.UUID
+	ID     int64
 }
 
 func (q *Queries) UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) error {

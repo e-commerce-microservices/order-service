@@ -27,6 +27,9 @@ type OrderServiceClient interface {
 	CreateOrder(ctx context.Context, in *CreateOrderRequest, opts ...grpc.CallOption) (*CreateOrderResponse, error)
 	DeleteOrder(ctx context.Context, in *DeleteOrderRequest, opts ...grpc.CallOption) (*DeleteOrderResponse, error)
 	UpdateOrder(ctx context.Context, in *UpdateOrderStatusRequest, opts ...grpc.CallOption) (*UpdateOrderStatusResponse, error)
+	HandleOrder(ctx context.Context, in *HandleOrderRequest, opts ...grpc.CallOption) (*HandleOrderResponse, error)
+	GetWaitingOrderBySupplier(ctx context.Context, in *GetWaitingOrderBySupplierRequest, opts ...grpc.CallOption) (*GetWaitingOrderBySupplierResponse, error)
+	GetWaitingOrderByCustomer(ctx context.Context, in *GetWaitingOrderByCustomerRequest, opts ...grpc.CallOption) (*GetWaitingOrderByCustomerResponse, error)
 }
 
 type orderServiceClient struct {
@@ -73,6 +76,33 @@ func (c *orderServiceClient) UpdateOrder(ctx context.Context, in *UpdateOrderSta
 	return out, nil
 }
 
+func (c *orderServiceClient) HandleOrder(ctx context.Context, in *HandleOrderRequest, opts ...grpc.CallOption) (*HandleOrderResponse, error) {
+	out := new(HandleOrderResponse)
+	err := c.cc.Invoke(ctx, "/ecommerce.OrderService/HandleOrder", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *orderServiceClient) GetWaitingOrderBySupplier(ctx context.Context, in *GetWaitingOrderBySupplierRequest, opts ...grpc.CallOption) (*GetWaitingOrderBySupplierResponse, error) {
+	out := new(GetWaitingOrderBySupplierResponse)
+	err := c.cc.Invoke(ctx, "/ecommerce.OrderService/GetWaitingOrderBySupplier", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *orderServiceClient) GetWaitingOrderByCustomer(ctx context.Context, in *GetWaitingOrderByCustomerRequest, opts ...grpc.CallOption) (*GetWaitingOrderByCustomerResponse, error) {
+	out := new(GetWaitingOrderByCustomerResponse)
+	err := c.cc.Invoke(ctx, "/ecommerce.OrderService/GetWaitingOrderByCustomer", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // OrderServiceServer is the server API for OrderService service.
 // All implementations must embed UnimplementedOrderServiceServer
 // for forward compatibility
@@ -81,6 +111,9 @@ type OrderServiceServer interface {
 	CreateOrder(context.Context, *CreateOrderRequest) (*CreateOrderResponse, error)
 	DeleteOrder(context.Context, *DeleteOrderRequest) (*DeleteOrderResponse, error)
 	UpdateOrder(context.Context, *UpdateOrderStatusRequest) (*UpdateOrderStatusResponse, error)
+	HandleOrder(context.Context, *HandleOrderRequest) (*HandleOrderResponse, error)
+	GetWaitingOrderBySupplier(context.Context, *GetWaitingOrderBySupplierRequest) (*GetWaitingOrderBySupplierResponse, error)
+	GetWaitingOrderByCustomer(context.Context, *GetWaitingOrderByCustomerRequest) (*GetWaitingOrderByCustomerResponse, error)
 	mustEmbedUnimplementedOrderServiceServer()
 }
 
@@ -99,6 +132,15 @@ func (UnimplementedOrderServiceServer) DeleteOrder(context.Context, *DeleteOrder
 }
 func (UnimplementedOrderServiceServer) UpdateOrder(context.Context, *UpdateOrderStatusRequest) (*UpdateOrderStatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateOrder not implemented")
+}
+func (UnimplementedOrderServiceServer) HandleOrder(context.Context, *HandleOrderRequest) (*HandleOrderResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method HandleOrder not implemented")
+}
+func (UnimplementedOrderServiceServer) GetWaitingOrderBySupplier(context.Context, *GetWaitingOrderBySupplierRequest) (*GetWaitingOrderBySupplierResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetWaitingOrderBySupplier not implemented")
+}
+func (UnimplementedOrderServiceServer) GetWaitingOrderByCustomer(context.Context, *GetWaitingOrderByCustomerRequest) (*GetWaitingOrderByCustomerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetWaitingOrderByCustomer not implemented")
 }
 func (UnimplementedOrderServiceServer) mustEmbedUnimplementedOrderServiceServer() {}
 
@@ -185,6 +227,60 @@ func _OrderService_UpdateOrder_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _OrderService_HandleOrder_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HandleOrderRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OrderServiceServer).HandleOrder(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ecommerce.OrderService/HandleOrder",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OrderServiceServer).HandleOrder(ctx, req.(*HandleOrderRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _OrderService_GetWaitingOrderBySupplier_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetWaitingOrderBySupplierRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OrderServiceServer).GetWaitingOrderBySupplier(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ecommerce.OrderService/GetWaitingOrderBySupplier",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OrderServiceServer).GetWaitingOrderBySupplier(ctx, req.(*GetWaitingOrderBySupplierRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _OrderService_GetWaitingOrderByCustomer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetWaitingOrderByCustomerRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OrderServiceServer).GetWaitingOrderByCustomer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ecommerce.OrderService/GetWaitingOrderByCustomer",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OrderServiceServer).GetWaitingOrderByCustomer(ctx, req.(*GetWaitingOrderByCustomerRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // OrderService_ServiceDesc is the grpc.ServiceDesc for OrderService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -207,6 +303,18 @@ var OrderService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateOrder",
 			Handler:    _OrderService_UpdateOrder_Handler,
+		},
+		{
+			MethodName: "HandleOrder",
+			Handler:    _OrderService_HandleOrder_Handler,
+		},
+		{
+			MethodName: "GetWaitingOrderBySupplier",
+			Handler:    _OrderService_GetWaitingOrderBySupplier_Handler,
+		},
+		{
+			MethodName: "GetWaitingOrderByCustomer",
+			Handler:    _OrderService_GetWaitingOrderByCustomer_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

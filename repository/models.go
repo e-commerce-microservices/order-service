@@ -6,12 +6,10 @@ package repository
 
 import (
 	"time"
-
-	"github.com/google/uuid"
 )
 
 type Order struct {
-	ID         uuid.UUID
+	ID         int64
 	CustomerID int64
 	SupplierID int64
 	ProductID  int64

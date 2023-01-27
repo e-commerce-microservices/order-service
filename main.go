@@ -11,6 +11,9 @@ import (
 	"github.com/e-commerce-microservices/order-service/repository"
 	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
+
+	// postgres driver
+	_ "github.com/lib/pq"
 )
 
 func init() {
