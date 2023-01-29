@@ -29,6 +29,7 @@ func (srv orderService) CreateOrder(ctx context.Context, req *pb.CreateOrderRequ
 	if err != nil {
 		return nil, err
 	}
+	// check product inventory + other order (waiting status)
 
 	err = srv.orderRepo.CreateOrder(ctx, repository.CreateOrderParams{
 		CustomerID: req.GetCustomerId(),
@@ -62,6 +63,8 @@ func (srv orderService) UpdateOrder(ctx context.Context, req *pb.UpdateOrderStat
 
 func (srv orderService) HandleOrder(ctx context.Context, req *pb.HandleOrderRequest) (*pb.HandleOrderResponse, error) {
 	var err error
+
+	// update product quantity
 
 	err = srv.orderRepo.UpdateOrderStatus(ctx, repository.UpdateOrderStatusParams{
 		Status: pb.OrderStatus_handled,
