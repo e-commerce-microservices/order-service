@@ -22,6 +22,7 @@ func init() {
 		log.Fatal(err)
 	}
 }
+
 func main() {
 	// init user db connection
 	pgDSN := fmt.Sprintf(
@@ -46,11 +47,18 @@ func main() {
 	}
 	authClient := pb.NewAuthServiceClient(authConn)
 
+	productConn, err := grpc.Dial("product-service:8080", grpc.WithInsecure())
+	if err != nil {
+		log.Fatal("can't dial product service", err)
+	}
+	productClient := pb.NewProductServiceClient(productConn)
+
 	// init queries
 	queries := repository.New(orderDB)
 	orderService := orderService{
-		authClient: authClient,
-		orderRepo:  *queries,
+		authClient:    authClient,
+		orderRepo:     *queries,
+		productClient: productClient,
 	}
 	pb.RegisterOrderServiceServer(grpcServer, orderService)
 

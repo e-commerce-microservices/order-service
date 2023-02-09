@@ -1,3 +1,6 @@
+
+CREATE TYPE order_status_enum AS ENUM ('waiting', 'handled');
+
 CREATE TABLE "order" (
     "id" serial8 PRIMARY KEY,
     "customer_id" serial8  NOT NULL,

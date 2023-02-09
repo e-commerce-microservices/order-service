@@ -30,6 +30,9 @@ type OrderServiceClient interface {
 	HandleOrder(ctx context.Context, in *HandleOrderRequest, opts ...grpc.CallOption) (*HandleOrderResponse, error)
 	GetWaitingOrderBySupplier(ctx context.Context, in *GetWaitingOrderBySupplierRequest, opts ...grpc.CallOption) (*GetWaitingOrderBySupplierResponse, error)
 	GetWaitingOrderByCustomer(ctx context.Context, in *GetWaitingOrderByCustomerRequest, opts ...grpc.CallOption) (*GetWaitingOrderByCustomerResponse, error)
+	GetOrderByProductId(ctx context.Context, in *GetOrderByProductIdRequest, opts ...grpc.CallOption) (*GetOrderByProductIdResponse, error)
+	CheckOrderIsHandled(ctx context.Context, in *CheckOrderIsHandledRequest, opts ...grpc.CallOption) (*CheckOrderIsHandledResponse, error)
+	GetHandledOrderByCustomer(ctx context.Context, in *GetHandledOrderByCustomerRequest, opts ...grpc.CallOption) (*GetHandledOrderByCustomerResponse, error)
 }
 
 type orderServiceClient struct {
@@ -103,6 +106,33 @@ func (c *orderServiceClient) GetWaitingOrderByCustomer(ctx context.Context, in *
 	return out, nil
 }
 
+func (c *orderServiceClient) GetOrderByProductId(ctx context.Context, in *GetOrderByProductIdRequest, opts ...grpc.CallOption) (*GetOrderByProductIdResponse, error) {
+	out := new(GetOrderByProductIdResponse)
+	err := c.cc.Invoke(ctx, "/ecommerce.OrderService/GetOrderByProductId", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *orderServiceClient) CheckOrderIsHandled(ctx context.Context, in *CheckOrderIsHandledRequest, opts ...grpc.CallOption) (*CheckOrderIsHandledResponse, error) {
+	out := new(CheckOrderIsHandledResponse)
+	err := c.cc.Invoke(ctx, "/ecommerce.OrderService/CheckOrderIsHandled", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *orderServiceClient) GetHandledOrderByCustomer(ctx context.Context, in *GetHandledOrderByCustomerRequest, opts ...grpc.CallOption) (*GetHandledOrderByCustomerResponse, error) {
+	out := new(GetHandledOrderByCustomerResponse)
+	err := c.cc.Invoke(ctx, "/ecommerce.OrderService/GetHandledOrderByCustomer", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // OrderServiceServer is the server API for OrderService service.
 // All implementations must embed UnimplementedOrderServiceServer
 // for forward compatibility
@@ -114,6 +144,9 @@ type OrderServiceServer interface {
 	HandleOrder(context.Context, *HandleOrderRequest) (*HandleOrderResponse, error)
 	GetWaitingOrderBySupplier(context.Context, *GetWaitingOrderBySupplierRequest) (*GetWaitingOrderBySupplierResponse, error)
 	GetWaitingOrderByCustomer(context.Context, *GetWaitingOrderByCustomerRequest) (*GetWaitingOrderByCustomerResponse, error)
+	GetOrderByProductId(context.Context, *GetOrderByProductIdRequest) (*GetOrderByProductIdResponse, error)
+	CheckOrderIsHandled(context.Context, *CheckOrderIsHandledRequest) (*CheckOrderIsHandledResponse, error)
+	GetHandledOrderByCustomer(context.Context, *GetHandledOrderByCustomerRequest) (*GetHandledOrderByCustomerResponse, error)
 	mustEmbedUnimplementedOrderServiceServer()
 }
 
@@ -141,6 +174,15 @@ func (UnimplementedOrderServiceServer) GetWaitingOrderBySupplier(context.Context
 }
 func (UnimplementedOrderServiceServer) GetWaitingOrderByCustomer(context.Context, *GetWaitingOrderByCustomerRequest) (*GetWaitingOrderByCustomerResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetWaitingOrderByCustomer not implemented")
+}
+func (UnimplementedOrderServiceServer) GetOrderByProductId(context.Context, *GetOrderByProductIdRequest) (*GetOrderByProductIdResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetOrderByProductId not implemented")
+}
+func (UnimplementedOrderServiceServer) CheckOrderIsHandled(context.Context, *CheckOrderIsHandledRequest) (*CheckOrderIsHandledResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CheckOrderIsHandled not implemented")
+}
+func (UnimplementedOrderServiceServer) GetHandledOrderByCustomer(context.Context, *GetHandledOrderByCustomerRequest) (*GetHandledOrderByCustomerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetHandledOrderByCustomer not implemented")
 }
 func (UnimplementedOrderServiceServer) mustEmbedUnimplementedOrderServiceServer() {}
 
@@ -281,6 +323,60 @@ func _OrderService_GetWaitingOrderByCustomer_Handler(srv interface{}, ctx contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _OrderService_GetOrderByProductId_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetOrderByProductIdRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OrderServiceServer).GetOrderByProductId(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ecommerce.OrderService/GetOrderByProductId",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OrderServiceServer).GetOrderByProductId(ctx, req.(*GetOrderByProductIdRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _OrderService_CheckOrderIsHandled_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CheckOrderIsHandledRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OrderServiceServer).CheckOrderIsHandled(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ecommerce.OrderService/CheckOrderIsHandled",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OrderServiceServer).CheckOrderIsHandled(ctx, req.(*CheckOrderIsHandledRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _OrderService_GetHandledOrderByCustomer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetHandledOrderByCustomerRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OrderServiceServer).GetHandledOrderByCustomer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ecommerce.OrderService/GetHandledOrderByCustomer",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OrderServiceServer).GetHandledOrderByCustomer(ctx, req.(*GetHandledOrderByCustomerRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // OrderService_ServiceDesc is the grpc.ServiceDesc for OrderService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -315,6 +411,18 @@ var OrderService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetWaitingOrderByCustomer",
 			Handler:    _OrderService_GetWaitingOrderByCustomer_Handler,
+		},
+		{
+			MethodName: "GetOrderByProductId",
+			Handler:    _OrderService_GetOrderByProductId_Handler,
+		},
+		{
+			MethodName: "CheckOrderIsHandled",
+			Handler:    _OrderService_CheckOrderIsHandled_Handler,
+		},
+		{
+			MethodName: "GetHandledOrderByCustomer",
+			Handler:    _OrderService_GetHandledOrderByCustomer_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

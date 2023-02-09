@@ -9,6 +9,35 @@ import (
 	"context"
 )
 
+const checkOrderIsHandled = `-- name: CheckOrderIsHandled :one
+SELECT COUNT(*) FROM "order"
+WHERE "product_id" = $1 AND "customer_id" = $2 AND "status" = 'handled'
+`
+
+type CheckOrderIsHandledParams struct {
+	ProductID  int64
+	CustomerID int64
+}
+
+func (q *Queries) CheckOrderIsHandled(ctx context.Context, arg CheckOrderIsHandledParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, checkOrderIsHandled, arg.ProductID, arg.CustomerID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countOrderByProductId = `-- name: CountOrderByProductId :one
+SELECT COUNT(*) from "order"
+WHERE "product_id" = $1
+`
+
+func (q *Queries) CountOrderByProductId(ctx context.Context, productID int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countOrderByProductId, productID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createOrder = `-- name: CreateOrder :exec
 INSERT INTO "order" (
     "customer_id", "supplier_id", "product_id", "quantity"
@@ -34,9 +63,75 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) error 
 	return err
 }
 
+const deleteOrder = `-- name: DeleteOrder :exec
+DELETE FROM "order"
+WHERE "id" = $1
+`
+
+func (q *Queries) DeleteOrder(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteOrder, id)
+	return err
+}
+
+const getHandledOrderByCustomer = `-- name: GetHandledOrderByCustomer :many
+SELECT id, customer_id, supplier_id, product_id, quantity, status, created_at FROM "order"
+WHERE "customer_id" = $1 AND "status" = 'handled'
+`
+
+func (q *Queries) GetHandledOrderByCustomer(ctx context.Context, customerID int64) ([]Order, error) {
+	rows, err := q.db.QueryContext(ctx, getHandledOrderByCustomer, customerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Order
+	for rows.Next() {
+		var i Order
+		if err := rows.Scan(
+			&i.ID,
+			&i.CustomerID,
+			&i.SupplierID,
+			&i.ProductID,
+			&i.Quantity,
+			&i.Status,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getOrderByID = `-- name: GetOrderByID :one
+SELECT id, customer_id, supplier_id, product_id, quantity, status, created_at FROM "order"
+WHERE "id" = $1 LIMIT 1
+`
+
+func (q *Queries) GetOrderByID(ctx context.Context, id int64) (Order, error) {
+	row := q.db.QueryRowContext(ctx, getOrderByID, id)
+	var i Order
+	err := row.Scan(
+		&i.ID,
+		&i.CustomerID,
+		&i.SupplierID,
+		&i.ProductID,
+		&i.Quantity,
+		&i.Status,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getWaitingOrderByCustomer = `-- name: GetWaitingOrderByCustomer :many
 SELECT id, customer_id, supplier_id, product_id, quantity, status, created_at FROM "order"
-WHERE "customer_id" = $1
+WHERE "customer_id" = $1 AND "status" = 'waiting'
 `
 
 func (q *Queries) GetWaitingOrderByCustomer(ctx context.Context, customerID int64) ([]Order, error) {
@@ -72,7 +167,7 @@ func (q *Queries) GetWaitingOrderByCustomer(ctx context.Context, customerID int6
 
 const getWaitingOrderBySupplier = `-- name: GetWaitingOrderBySupplier :many
 SELECT id, customer_id, supplier_id, product_id, quantity, status, created_at FROM "order"
-WHERE "supplier_id" = $1
+WHERE "supplier_id" = $1 AND "status" = 'waiting'
 `
 
 func (q *Queries) GetWaitingOrderBySupplier(ctx context.Context, supplierID int64) ([]Order, error) {
@@ -106,6 +201,17 @@ func (q *Queries) GetWaitingOrderBySupplier(ctx context.Context, supplierID int6
 	return items, nil
 }
 
+const handleOrder = `-- name: HandleOrder :exec
+UPDATE "order"
+SET "status" = 'handled'
+WHERE "id" = $1
+`
+
+func (q *Queries) HandleOrder(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, handleOrder, id)
+	return err
+}
+
 const updateOrderStatus = `-- name: UpdateOrderStatus :exec
 UPDATE "order"
 SET "status" = $1
@@ -113,7 +219,7 @@ WHERE "id" = $2
 `
 
 type UpdateOrderStatusParams struct {
-	Status interface{}
+	Status NullOrderStatusEnum
 	ID     int64
 }
 
