@@ -3,26 +3,38 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"strconv"
 
 	"github.com/e-commerce-microservices/order-service/pb"
 	"github.com/e-commerce-microservices/order-service/repository"
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/itimofeev/go-saga"
+	"go.opentelemetry.io/otel"
 	"google.golang.org/grpc/metadata"
 )
 
 type orderService struct {
 	authClient    pb.AuthServiceClient
 	productClient pb.ProductServiceClient
+	cartClient    pb.CartServiceClient
 	orderRepo     repository.Queries
 	pb.UnimplementedOrderServiceServer
 }
 
 var _empty = &empty.Empty{}
 
+var tracer = otel.Tracer("order-service")
+var sagaStore = saga.New()
+
 func (srv orderService) CreateOrder(ctx context.Context, req *pb.CreateOrderRequest) (*pb.CreateOrderResponse, error) {
 	var err error
+	orderSaga := saga.NewSaga("order-saga")
+
+	ctx, span := tracer.Start(ctx, "OrderService.Create")
+	defer span.End()
+
 	md, _ := metadata.FromIncomingContext(ctx)
 	ctx = metadata.NewOutgoingContext(ctx, md)
 
@@ -33,42 +45,123 @@ func (srv orderService) CreateOrder(ctx context.Context, req *pb.CreateOrderRequ
 		return nil, err
 	}
 
-	log.Println("Get inventory")
+	log.Println("addr: ", req.Addr)
+	if req.Addr == nil || req.Addr.GetName() == "" || req.Addr.GetPhone() == "" || req.Addr.GetDetail() == "" {
+		return nil, errors.New("Địa chỉ không hợp lệ")
+	}
+
+	log.Println("Create address")
+	var address repository.Address
+	orderSaga.AddStep(&saga.Step{
+		Name: "create address",
+		Func: func(ctx context.Context) error {
+			address, err = srv.orderRepo.CreateAddress(ctx, repository.CreateAddressParams{
+				Name:   req.Addr.GetName(),
+				Phone:  req.Addr.GetPhone(),
+				Detail: req.Addr.GetDetail(),
+			})
+			if err != nil {
+				return errors.New("Địa chỉ không hợp lệ")
+			}
+			return nil
+		},
+		CompensateFunc: func(ctx context.Context) error {
+			log.Println("delete address", address)
+			return srv.orderRepo.DeleteAddress(ctx, address.ID)
+		},
+	})
+
+	fmt.Println("get list order from request", req.GetListOrder())
+	if len(req.GetListOrder()) == 0 {
+		return nil, errors.New("Vui lòng chọn sản phẩm cần mua")
+	}
+
 	// check product inventory + other order (waiting status)
-	// get inventory
-	inventory, err := srv.productClient.GetListProductInventory(ctx, &pb.GetInventoryRequest{
-		ProductId: req.GetProductId(),
-	})
-	if err != nil {
-		return nil, err
+	for index, v := range req.GetListOrder() {
+		inventory, err := srv.productClient.GetListProductInventory(ctx, &pb.GetInventoryRequest{
+			ProductId: v.GetProductId(),
+		})
+		if err != nil {
+			return nil, err
+		}
+		if inventory.GetCount() < int64(v.GetOrderQuantity()) {
+			return nil, errors.New("Sản phẩm trong kho không đủ")
+		}
+
+		log.Println("create order")
+		customerID, _ := strconv.ParseInt(claims.GetId(), 10, 64)
+
+		var order repository.Order
+		orderSaga.AddStep(&saga.Step{
+			Name: fmt.Sprintf("createOrder: %d", index),
+			Func: func(ctx context.Context) error {
+				_, span := tracer.Start(ctx, "OrderService.Database.Insert")
+				defer span.End()
+				order, err = srv.orderRepo.CreateOrder(ctx, repository.CreateOrderParams{
+					CustomerID: customerID,
+					SupplierID: v.GetSupplierId(),
+					ProductID:  v.GetProductId(),
+					Quantity:   v.GetOrderQuantity(),
+					AddressID:  address.ID,
+				})
+				if err != nil {
+					return err
+				}
+				return nil
+			},
+			CompensateFunc: func(ctx context.Context) error {
+				return srv.orderRepo.DeleteOrder(ctx, order.ID)
+			},
+		})
+
+		log.Println("update inventory")
+		orderSaga.AddStep(&saga.Step{
+			Name: fmt.Sprintf("Update inventory: %d", index),
+			Func: func(ctx context.Context) error {
+				_, err := srv.productClient.DescInventory(ctx, &pb.DescInventoryRequest{
+					ProductId: v.GetProductId(),
+					Count:     v.GetOrderQuantity(),
+				})
+				return err
+			},
+			CompensateFunc: func(ctx context.Context) error {
+				_, err := srv.productClient.IncInventory(ctx, &pb.IncInventoryRequest{
+					ProductId: v.GetProductId(),
+					Count:     v.GetOrderQuantity(),
+				})
+				return err
+			},
+		})
+
+		// delete cart
+		orderSaga.AddStep(&saga.Step{
+			Name: fmt.Sprintf("Delete cart: %d", index),
+			Func: func(ctx context.Context) error {
+				_, err := srv.cartClient.DeleteCart(ctx, &pb.DeleteCartRequest{CartId: v.GetCartId()})
+				if err != nil {
+					return err
+				}
+				return nil
+			},
+			CompensateFunc: func(ctx context.Context) error {
+				_, err := srv.cartClient.CreateCart(ctx, &pb.CreateCartRequest{
+					ProductId: v.GetProductId(),
+					Quantity:  v.GetOrderQuantity(),
+				})
+				if err != nil {
+					return err
+				}
+				return nil
+			},
+		})
+
 	}
 
-	if inventory.GetCount() < int64(req.GetOrderQuantity()) {
-		return &pb.CreateOrderResponse{
-			Message: "Sản phẩm trong kho không đủ",
-		}, errors.New("invalid request")
-	}
-
-	log.Println("create order")
-	customerID, _ := strconv.ParseInt(claims.GetId(), 10, 64)
-	err = srv.orderRepo.CreateOrder(ctx, repository.CreateOrderParams{
-		CustomerID: customerID,
-		SupplierID: req.GetSupplierId(),
-		ProductID:  req.GetProductId(),
-		Quantity:   req.GetOrderQuantity(),
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	log.Println("desc order")
-	// update inventory
-	_, err = srv.productClient.DescInventory(ctx, &pb.DescInventoryRequest{
-		ProductId: req.GetProductId(),
-		Count:     req.GetOrderQuantity(),
-	})
-	if err != nil {
-		return nil, err
+	coordinator := saga.NewCoordinator(ctx, ctx, orderSaga, sagaStore)
+	result := coordinator.Play()
+	if result.ExecutionError != nil {
+		log.Println("saga error: ", result.ExecutionError)
+		return nil, errors.New("Tạo đơn hàng không thành công")
 	}
 
 	return &pb.CreateOrderResponse{
@@ -220,6 +313,7 @@ func (srv orderService) GetWaitingOrderBySupplier(ctx context.Context, req *pb.G
 		return nil, errors.New("Unauthorization")
 	}
 	supplierID, _ := strconv.ParseInt(claims.GetId(), 10, 64)
+	log.Println("get product by supplierID: ", supplierID)
 
 	listOrder, err := srv.orderRepo.GetWaitingOrderBySupplier(ctx, supplierID)
 	if err != nil {
@@ -233,6 +327,7 @@ func (srv orderService) GetWaitingOrderBySupplier(ctx context.Context, req *pb.G
 	resp, err := srv.productClient.GetListProductByIDs(ctx, &pb.GetListProductByIDsRequest{
 		ListId: listID,
 	})
+	log.Println("resp: ", resp, listID)
 	if len(resp.ListProduct) == 0 || err != nil {
 		return &pb.GetWaitingOrderBySupplierResponse{
 			ListOrder: []*pb.Order{},
@@ -404,6 +499,75 @@ func (srv orderService) GetHandledOrderByCustomer(ctx context.Context, req *pb.G
 	}, nil
 }
 
+func (srv orderService) GetHandledOrderBySupllier(ctx context.Context, _ *empty.Empty) (*pb.GetHandledOrderBySupplierResponse, error) {
+	// auth
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, errors.New("invalid request")
+	}
+	ctx = metadata.NewOutgoingContext(ctx, md)
+
+	log.Println("get user claims")
+	claims, err := srv.authClient.GetUserClaims(ctx, _empty)
+	if err != nil {
+		return nil, err
+	}
+
+	customerID, _ := strconv.ParseInt(claims.GetId(), 10, 64)
+
+	log.Println("get list order")
+	listOrder, err := srv.orderRepo.GetHandledOrderBySupplier(ctx, customerID)
+	if err != nil {
+		return nil, err
+	}
+
+	listID := make([]int64, 0, len(listOrder))
+	for _, order := range listOrder {
+		listID = append(listID, order.ProductID)
+	}
+	log.Println("get list product")
+	resp, err := srv.productClient.GetListProductByIDs(ctx, &pb.GetListProductByIDsRequest{
+		ListId: listID,
+	})
+
+	if len(resp.ListProduct) == 0 || err != nil {
+		return &pb.GetHandledOrderBySupplierResponse{
+			ListOrder: []*pb.Order{},
+		}, nil
+	}
+
+	m := make(map[int64]*pb.Product)
+	for _, v := range resp.ListProduct {
+		m[v.ProductId] = v
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	log.Println("create response")
+	result := make([]*pb.Order, 0, len(listOrder))
+	for _, order := range listOrder {
+		product, ok := m[order.ProductID]
+		if !ok {
+			continue
+		}
+
+		result = append(result, &pb.Order{
+			ProductPrice:  product.Price,
+			ProductName:   product.Name,
+			ProductImage:  product.Thumbnail,
+			OrderId:       order.ID,
+			ProductId:     order.ProductID,
+			OrderQuantity: order.Quantity,
+			CustomerId:    order.CustomerID,
+			SupplierId:    order.SupplierID,
+		})
+	}
+
+	return &pb.GetHandledOrderBySupplierResponse{
+		ListOrder: result,
+	}, nil
+}
 func (srv orderService) Ping(context.Context, *empty.Empty) (*pb.Pong, error) {
 	return &pb.Pong{
 		Message: "pong",

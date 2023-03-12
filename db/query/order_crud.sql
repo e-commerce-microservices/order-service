@@ -1,9 +1,9 @@
--- name: CreateOrder :exec
+-- name: CreateOrder :one
 INSERT INTO "order" (
-    "customer_id", "supplier_id", "product_id", "quantity"
+    "customer_id", "supplier_id", "product_id", "quantity", "address_id"
 ) VALUES (
-    $1, $2, $3, $4
-);
+    $1, $2, $3, $4, $5
+) RETURNING *;
 
 -- name: UpdateOrderStatus :exec
 UPDATE "order"
@@ -27,6 +27,10 @@ WHERE "product_id" = $1;
 SELECT * FROM "order"
 WHERE "customer_id" = $1 AND "status" = 'handled';
 
+-- name: GetHandledOrderBySupplier :many
+SELECT * FROM "order"
+WHERE "supplier_id" = $1 AND "status" = 'handled';
+
 -- name: DeleteOrder :exec
 DELETE FROM "order"
 WHERE "id" = $1;
@@ -43,3 +47,14 @@ WHERE "id" = $1;
 -- name: CheckOrderIsHandled :one
 SELECT COUNT(*) FROM "order"
 WHERE "product_id" = $1 AND "customer_id" = $2 AND "status" = 'handled';
+
+-- name: CreateAddress :one
+INSERT INTO "address" (
+    "name", "phone", "detail"
+) VALUES (
+    $1, $2, $3
+) RETURNING *;
+
+-- name: DeleteAddress :exec
+DELETE FROM "address"
+WHERE "id" = $1;

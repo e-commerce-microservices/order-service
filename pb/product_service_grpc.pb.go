@@ -29,6 +29,7 @@ type ProductServiceClient interface {
 	GetListProduct(ctx context.Context, in *GetListProductRequest, opts ...grpc.CallOption) (*GetListProductResponse, error)
 	GetListProductByIDs(ctx context.Context, in *GetListProductByIDsRequest, opts ...grpc.CallOption) (*GetListProductResponse, error)
 	GetRecomendProduct(ctx context.Context, in *GetRecommendProductRequest, opts ...grpc.CallOption) (*GetListProductResponse, error)
+	DeleteProduct(ctx context.Context, in *DeleteProductRequest, opts ...grpc.CallOption) (*DeleteProductResponse, error)
 	GetProductBySupplier(ctx context.Context, in *GetProductBySupplierRequest, opts ...grpc.CallOption) (*GetListProductResponse, error)
 	UpdateProduct(ctx context.Context, in *UpdateProductRequest, opts ...grpc.CallOption) (*GeneralResponse, error)
 	CreateCategory(ctx context.Context, in *CreateCategoryRequest, opts ...grpc.CallOption) (*GeneralResponse, error)
@@ -94,6 +95,15 @@ func (c *productServiceClient) GetListProductByIDs(ctx context.Context, in *GetL
 func (c *productServiceClient) GetRecomendProduct(ctx context.Context, in *GetRecommendProductRequest, opts ...grpc.CallOption) (*GetListProductResponse, error) {
 	out := new(GetListProductResponse)
 	err := c.cc.Invoke(ctx, "/ecommerce.ProductService/GetRecomendProduct", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *productServiceClient) DeleteProduct(ctx context.Context, in *DeleteProductRequest, opts ...grpc.CallOption) (*DeleteProductResponse, error) {
+	out := new(DeleteProductResponse)
+	err := c.cc.Invoke(ctx, "/ecommerce.ProductService/DeleteProduct", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -173,6 +183,7 @@ type ProductServiceServer interface {
 	GetListProduct(context.Context, *GetListProductRequest) (*GetListProductResponse, error)
 	GetListProductByIDs(context.Context, *GetListProductByIDsRequest) (*GetListProductResponse, error)
 	GetRecomendProduct(context.Context, *GetRecommendProductRequest) (*GetListProductResponse, error)
+	DeleteProduct(context.Context, *DeleteProductRequest) (*DeleteProductResponse, error)
 	GetProductBySupplier(context.Context, *GetProductBySupplierRequest) (*GetListProductResponse, error)
 	UpdateProduct(context.Context, *UpdateProductRequest) (*GeneralResponse, error)
 	CreateCategory(context.Context, *CreateCategoryRequest) (*GeneralResponse, error)
@@ -204,6 +215,9 @@ func (UnimplementedProductServiceServer) GetListProductByIDs(context.Context, *G
 }
 func (UnimplementedProductServiceServer) GetRecomendProduct(context.Context, *GetRecommendProductRequest) (*GetListProductResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetRecomendProduct not implemented")
+}
+func (UnimplementedProductServiceServer) DeleteProduct(context.Context, *DeleteProductRequest) (*DeleteProductResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteProduct not implemented")
 }
 func (UnimplementedProductServiceServer) GetProductBySupplier(context.Context, *GetProductBySupplierRequest) (*GetListProductResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetProductBySupplier not implemented")
@@ -343,6 +357,24 @@ func _ProductService_GetRecomendProduct_Handler(srv interface{}, ctx context.Con
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProductServiceServer).GetRecomendProduct(ctx, req.(*GetRecommendProductRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ProductService_DeleteProduct_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteProductRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProductServiceServer).DeleteProduct(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ecommerce.ProductService/DeleteProduct",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProductServiceServer).DeleteProduct(ctx, req.(*DeleteProductRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -503,6 +535,10 @@ var ProductService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetRecomendProduct",
 			Handler:    _ProductService_GetRecomendProduct_Handler,
+		},
+		{
+			MethodName: "DeleteProduct",
+			Handler:    _ProductService_DeleteProduct_Handler,
 		},
 		{
 			MethodName: "GetProductBySupplier",
