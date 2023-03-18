@@ -1,5 +1,5 @@
 
-CREATE TYPE order_status_enum AS ENUM ('waiting', 'handled');
+CREATE TYPE order_status_enum AS ENUM ('waiting', 'handled', 'cancel');
 
 CREATE TABLE "order" (
     "id" serial8 PRIMARY KEY,

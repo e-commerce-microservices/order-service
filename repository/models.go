@@ -15,6 +15,7 @@ type OrderStatusEnum string
 const (
 	OrderStatusEnumWaiting OrderStatusEnum = "waiting"
 	OrderStatusEnumHandled OrderStatusEnum = "handled"
+	OrderStatusEnumCancel  OrderStatusEnum = "cancel"
 )
 
 func (e *OrderStatusEnum) Scan(src interface{}) error {

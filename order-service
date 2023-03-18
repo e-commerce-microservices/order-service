@@ -1,0 +1,82 @@
+# Note
+
+Kính thưa thầy chủ tịch hội đồng và các thầy cô trong hội đồng
+Em là Trần Đức Ngọc lớp kĩ thuật máy tính 02.
+Hôm nay em xin trình bày đồ án tốt nghiệp của mình với tên đề tài là 
+Xây dựng web sàn thương mại điện tử cho các cửa hàng trực tuyến.
+Sau đây em xin bắt đầu.
+
+Bản trình bảy của em gồm 6 phần. Phần đầu tin là giới thiệu về đề tài, tiếp theo là tổng quan các chức năng
+phần thứ 3 là phần thiết kế hệ thống, phần thứ tư là những công nghệ sử dụng phần thứ 5 là những kết quả
+thực nghiệm và phần cuối cùng là phần tổng kết.
+
+## Phần đầu tiên: giới thiệu đề tài
+### Ý tưởng đề tài
+Bắt đầu từ tính tiện lợi, sự đa dạng trong mua sắm, hành vi mua hàng của người dùng đã chuyển từ mua tại các
+cửa hàng truyền thống sang mua trên các cửa hàng thương mại điện tử.
+
+Người bán hàng muốn mở một cửa hàng thương mại điện tử gặp phải nhiều khó khăn về kinh phí cũng như vận hành,
+bảo trì hệ thống.
+
+Giải pháp đưa ra là xây dựng một sàn thương mại điện tử là nơi trung gian giữa người mua với người bán.
+
+
+### Mục tiêu và phạm vi đề tài
+Xây dựng sàn thương mại điện tử với các tính năng cơ bản hỗ trợ mua bán, nhận xét, tìm kiếm sản phẩm.
+Tìm hiểu và triển khai kiến trúc microservices, trên nền tảng kubernetes.
+
+## Tổng quan chức năng
+
+### Phần Usecase tổng quan
+của em có 4 tác nhân chính là khách là người chưa đăng kí tài khoản trên sàn, họ chỉ có thể tìm kiếm
+và xem thông tin sản phẩm, tác nhân thứ hai là người mua hàng họ là những người đã đăng kí tài khoản, 
+họ có thể trò chuyện với chủ cửa hàng, mua hàng, nếu mua thành công thì có thể đảnh giá sản phẩm, báo cáo sản phẩm
+và họ cũng có thể đăng kí để trở thành người bán hàng. Người bán hàng có thêm các chức năng như quản lý đơn hàng,
+và quản lý cửa hàng của họ. Tác nhân cuối cùng là người quản trị. Họ có chức năng xử lý báo cáo của người
+mua hàng.
+
+### Phân rã quản lý giỏ hàng
+
+Người mua hàng có thể thêm sản phẩm vào giỏ hàng, xóa sản phẩm từ giỏ hàng, tăng giảm số lượng sản phẩm
+từ đó tạo đơn hàng trước khi tạo đơn hàng họ phải chọn sản phẩm trong giỏ hàng và địa chỉ giao hàng.
+
+### Tiếp theo là quy trình nghiệp vụ tìm kiếm sản phẩm
+
+Người mua hàng sẽ nhập thông tin vào ô tìm kiếm và sau đó chọn tìm kiếm, hệ thống nhận được tên sản phẩm cần tìm kiếm
+sau đó sẽ tìm kiếm trong elasticsearch để lấy ra danh sách các id khớp với tên tìm kiếm từ đó tìm kiếm thông tin chi
+tiết về sản phẩm ở trong cơ sở dữ liệu.
+
+## Phần 3 là phần thiết kế hệ thống
+
+### Như đã trình bày ở trên, trong đồ án này em tìm kiểu kiến trúc microservices. 
+Trong kiến trúc microservices, một hệ thống được chia nhỏ ra thành các services sao cho chúng có thể phát triển,
+triển khai độc lập, sự liên kết giữa các service là lỏng lẻo, mỗi service sẽ giải quyết một bài toán cụ thể, và
+được phát triển mởi một nhóm nhỏ.
+
+Phần backend em chia thành cac service: Authentication service, product service, user service, order service, review service, chat service và search service
+Các service này giao tiếp với nhau thông qua gRPC. Vì gRPC dùng http/2 mà các browser lại chỉ đang hỗ trợ http/1
+cho nên cần 1 api gw có tác dụng trung chuyển và điểu hướng.
+
+Trong microservice thì mỗi service sẽ có một database. Lợi ích đem lại là mỗi team sẽ quản lý dữ liệu riêng của
+họ mà không chia sẽ cho team khác, scale db cũng có thể triển khai độc lập. Tuy nhiên cũng sẽ mất đi tính
+chất ACID. Trong đồ án này em sử dụng saga để đảm bảo data consistency. 
+
+Trong saga một yêu cầu có thao tác đọc ghi vào nhiêu database sẽ được định nghĩa là T1,T2 ...Tn, trong đó Ti là 
+một local transaction, còn Ci là các thao tác có nhiệm vụ hoàn tác lại các thao tác Ti. 
+
+Ví dụ một service cần thao tác với 3 service khác. Trong trường hợp happy path (không có lỗi gì xảy ra). Thì đầu tiên 
+service đó sẽ bắt đầu một saga, mỗi thao tác đề được saga log lưu lại. Sau đó Saga Execution Coordinator sẽ gọi để 
+đến các service tương ứng. Stack hiện tại là T1, T2, T3.
+
+Trong trường hợp có lỗi xảy ra ví dụ như service 2 bị lỗi, thì saga sẽ bị hủy và thực hiện lại các thao tác bù đắp lại
+những gì đã gây ra trước đó là C2 và C1. Stack bây giờ là T1, T2, C2, C1.
+
+; Tuy nhiên saga cũng có nhược điểm là mất đi tính isolation. Trong đồ án này tính isolation của em chỉ là read uncommited.
+
+
+
+
+Em đã trình bày xong đồ án tốt nghiệp của mình. Em xin gửi lời cảm ơn đến TS. Trần Hải Anh đã nhiệt tình
+giúp đỡ em hoàn thành ĐATN. Tuy đã cố gắng nhưng với kiến thức còn hạn chế, chắc chắn ĐATN của em không tránh
+khỏi những sai sót. Em rất mong nhận được ý kiến từ các thầy cô và các bạn để ĐATN hoàn thiện hơn. Em xin chân 
+thành cảm ơn. 

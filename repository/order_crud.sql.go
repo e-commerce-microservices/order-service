@@ -9,6 +9,17 @@ import (
 	"context"
 )
 
+const cancelOrder = `-- name: CancelOrder :exec
+UPDATE "order"
+SET "status" = 'cancel'
+WHERE "id" = $1
+`
+
+func (q *Queries) CancelOrder(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, cancelOrder, id)
+	return err
+}
+
 const checkOrderIsHandled = `-- name: CheckOrderIsHandled :one
 SELECT COUNT(*) FROM "order"
 WHERE "product_id" = $1 AND "customer_id" = $2 AND "status" = 'handled'
@@ -36,6 +47,34 @@ func (q *Queries) CountOrderByProductId(ctx context.Context, productID int64) (i
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const countOrderHandledByProductId = `-- name: CountOrderHandledByProductId :many
+SELECT "quantity" from "order"
+WHERE "product_id" = $1 AND "status" = 'handled'
+`
+
+func (q *Queries) CountOrderHandledByProductId(ctx context.Context, productID int64) ([]int32, error) {
+	rows, err := q.db.QueryContext(ctx, countOrderHandledByProductId, productID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int32
+	for rows.Next() {
+		var quantity int32
+		if err := rows.Scan(&quantity); err != nil {
+			return nil, err
+		}
+		items = append(items, quantity)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const createAddress = `-- name: CreateAddress :one
@@ -113,13 +152,106 @@ func (q *Queries) DeleteAddress(ctx context.Context, id int64) error {
 }
 
 const deleteOrder = `-- name: DeleteOrder :exec
-DELETE FROM "order"
+UPDATE "order"
+SET "status" = 'cancel'
 WHERE "id" = $1
 `
 
 func (q *Queries) DeleteOrder(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, deleteOrder, id)
 	return err
+}
+
+const getAddressById = `-- name: GetAddressById :one
+SELECT id, name, phone, detail FROM "address"
+WHERE "id" = $1
+LIMIT 1
+`
+
+func (q *Queries) GetAddressById(ctx context.Context, id int64) (Address, error) {
+	row := q.db.QueryRowContext(ctx, getAddressById, id)
+	var i Address
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Phone,
+		&i.Detail,
+	)
+	return i, err
+}
+
+const getCancelOrderByCustomer = `-- name: GetCancelOrderByCustomer :many
+SELECT id, customer_id, supplier_id, product_id, quantity, status, address_id, created_at FROM "order"
+WHERE "customer_id" = $1 AND "status" = 'cancel'
+`
+
+func (q *Queries) GetCancelOrderByCustomer(ctx context.Context, customerID int64) ([]Order, error) {
+	rows, err := q.db.QueryContext(ctx, getCancelOrderByCustomer, customerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Order
+	for rows.Next() {
+		var i Order
+		if err := rows.Scan(
+			&i.ID,
+			&i.CustomerID,
+			&i.SupplierID,
+			&i.ProductID,
+			&i.Quantity,
+			&i.Status,
+			&i.AddressID,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getCancelOrderBySupplier = `-- name: GetCancelOrderBySupplier :many
+SELECT id, customer_id, supplier_id, product_id, quantity, status, address_id, created_at FROM "order"
+WHERE "supplier_id" = $1 AND "status" = 'cancel'
+`
+
+func (q *Queries) GetCancelOrderBySupplier(ctx context.Context, supplierID int64) ([]Order, error) {
+	rows, err := q.db.QueryContext(ctx, getCancelOrderBySupplier, supplierID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Order
+	for rows.Next() {
+		var i Order
+		if err := rows.Scan(
+			&i.ID,
+			&i.CustomerID,
+			&i.SupplierID,
+			&i.ProductID,
+			&i.Quantity,
+			&i.Status,
+			&i.AddressID,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getHandledOrderByCustomer = `-- name: GetHandledOrderByCustomer :many

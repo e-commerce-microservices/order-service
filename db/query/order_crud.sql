@@ -23,16 +23,34 @@ WHERE "customer_id" = $1 AND "status" = 'waiting';
 SELECT COUNT(*) from "order"
 WHERE "product_id" = $1;
 
+-- name: CountOrderHandledByProductId :many
+SELECT "quantity" from "order"
+WHERE "product_id" = $1 AND "status" = 'handled';
+
 -- name: GetHandledOrderByCustomer :many
 SELECT * FROM "order"
 WHERE "customer_id" = $1 AND "status" = 'handled';
+
+-- name: GetCancelOrderByCustomer :many
+SELECT * FROM "order"
+WHERE "customer_id" = $1 AND "status" = 'cancel';
+
+-- name: GetCancelOrderBySupplier :many
+SELECT * FROM "order"
+WHERE "supplier_id" = $1 AND "status" = 'cancel';
 
 -- name: GetHandledOrderBySupplier :many
 SELECT * FROM "order"
 WHERE "supplier_id" = $1 AND "status" = 'handled';
 
+-- name: GetAddressById :one
+SELECT * FROM "address"
+WHERE "id" = $1
+LIMIT 1;
+
 -- name: DeleteOrder :exec
-DELETE FROM "order"
+UPDATE "order"
+SET "status" = 'cancel'
 WHERE "id" = $1;
 
 -- name: GetOrderByID :one
@@ -42,6 +60,11 @@ WHERE "id" = $1 LIMIT 1;
 -- name: HandleOrder :exec
 UPDATE "order"
 SET "status" = 'handled'
+WHERE "id" = $1;
+
+-- name: CancelOrder :exec
+UPDATE "order"
+SET "status" = 'cancel'
 WHERE "id" = $1;
 
 -- name: CheckOrderIsHandled :one
